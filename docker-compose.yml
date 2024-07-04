@@ -1,0 +1,43 @@
+version: "2.1"
+services:
+  rabbitmq:
+    image: rabbitmq:3.10.7-management
+    ports:
+      - 15672:15672
+      - 5672:5672
+    environment:
+      - "RABBITMQ_DEFAULT_PASS=rabbitpass"
+      - "RABBITMQ_DEFAULT_USER=dramatiq"
+      - "RABBITMQ_DEFAULT_VHOST=/"
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - 5432:5432
+    restart: always
+  dramatiq:
+    depends_on:
+      - postgres
+      - rabbitmq
+    build: .
+    command: >
+      bash -c "poetry run python manage.py rundramatiq"
+    volumes:
+      - shared_volume:/code
+  web:
+    depends_on:
+      - postgres
+      - rabbitmq
+    build: .
+    command: >
+      bash -c "poetry run python manage.py migrate; poetry run gunicorn settings.wsgi:application --bind 0.0.0.0:8000"
+    ports:
+      - 8000:8000
+    volumes:
+      - shared_volume:/code
+
+volumes:
+  shared_volume:
